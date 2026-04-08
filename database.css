@@ -1,0 +1,172 @@
+/* ===============================
+   ROOT COLORS
+================================ */
+:root {
+  --bg: #f2efe7;
+  --ink: #11232f;
+  --card: #fffdf8;
+  --line: #d8d3c8;
+  --accent: #0d9488;
+  --accent-deep: #0f766e;
+  --muted: #5b6b74;
+  --shadow: 0 12px 35px rgba(10, 43, 57, 0.12);
+}
+
+/* ===============================
+   GLOBAL
+================================ */
+body {
+  font-family: "Manrope", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  margin: 0;
+  padding: 1rem;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: var(--ink);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+/* ===============================
+   BUTTONS
+================================ */
+.btn-back {
+  display: inline-block;
+  margin: 0.4rem 0.3rem;
+  padding: 0.55rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.4px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(13, 148, 136, 0.25);
+  transition: all 0.25s ease;
+}
+
+.btn-back:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(13, 148, 136, 0.35);
+}
+
+.btn-back:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+}
+
+.btn-back:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  opacity: 0.7;
+}
+
+/* ===============================
+   FILTER SECTION
+================================ */
+.filter-container {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+select,
+input[type="datetime-local"] {
+  padding: 0.45rem 0.7rem;
+  font-family: "Manrope", sans-serif;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  margin: 0 0.4rem;
+  outline: none;
+  transition: border 0.2s ease;
+}
+
+select:focus,
+input[type="datetime-local"]:focus {
+  border-color: var(--accent);
+}
+
+/* ===============================
+   PAGE INFO BADGE
+================================ */
+#page-info {
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.8rem;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  color: var(--accent-deep);
+}
+
+/* ===============================
+   TABLE DESIGN
+================================ */
+.database-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.database-table th,
+.database-table td {
+  padding: 0.8rem;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+/* Header */
+.database-table th {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: white;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Zebra rows */
+.database-table tr:nth-child(even) {
+  background: rgba(13, 148, 136, 0.05);
+}
+
+/* Hover row effect */
+.database-table tbody tr:hover {
+  background: rgba(13, 148, 136, 0.12);
+  transition: background 0.2s ease;
+}
+
+/* ===============================
+   RESPONSIVE TABLE
+================================ */
+@media (max-width: 900px) {
+  .database-table th,
+  .database-table td {
+    font-size: 0.75rem;
+    padding: 0.5rem;
+  }
+
+  .btn-back {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ===============================
+   HIDDEN COLUMN
+================================ */
+.hidden-col {
+  display: none;
+}
