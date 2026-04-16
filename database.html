@@ -24,23 +24,34 @@
       <option value="hour">Hour</option>
       <option value="day">Day</option>
       <option value="week">Week</option>
-
     </select>
   </div>
 
   <!-- Column Group Filter -->
-  <div class="filter-container" style="flex-wrap:wrap; gap:10px;">
-    <label style="font-weight:bold;">Show Columns:</label>
-    <label><input type="checkbox" class="col-group-toggle" data-group="n"    checked> N (Nitrogen)</label>
-    <label><input type="checkbox" class="col-group-toggle" data-group="p"    checked> P (Phosphorus)</label>
-    <label><input type="checkbox" class="col-group-toggle" data-group="k"    checked> K (Potassium)</label>
-    <label><input type="checkbox" class="col-group-toggle" data-group="sm"   checked> Soil Moisture</label>
-    <label style="font-weight:bold; margin-left:8px;">Pump Filter (5-min avg):</label>
-    <label><input type="checkbox" id="pump-event-toggle" class="col-group-toggle" data-group="pump" checked> All Pumps</label>
-    <label style="margin-left:8px;"><input type="checkbox" class="pump-individual" data-pump="Pump1" checked> Pump N</label>
-    <label style="margin-left:8px;"><input type="checkbox" class="pump-individual" data-pump="Pump2" checked> Pump P</label>
-    <label style="margin-left:8px;"><input type="checkbox" class="pump-individual" data-pump="Pump3" checked> Pump K</label>
-    <label style="margin-left:8px;"><input type="checkbox" class="pump-individual" data-pump="Pump4" checked> Pump W</label>
+  <div class="filter-container">
+    <label style="font-weight:bold; margin-right:8px;">Show Columns:</label>
+    <div class="multi-select-wrapper">
+      <div class="multi-select-trigger" id="col-dropdown-trigger">
+      </div>
+      <div class="multi-select-dropdown" id="col-dropdown">
+        <div class="multi-select-section">Nutrients</div>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="n"     checked> N (Nitrogen)</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="p"     checked> P (Phosphorus)</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="k"     checked> K (Potassium)</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="sm"    checked> Soil Moisture</label>
+        <div class="multi-select-section">Pumps</div>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="pump"  checked id="pump-event-toggle"> Pumps (5-min avg mode)</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="pumpN" checked> Pump N</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="pumpP" checked> Pump P</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="pumpK" checked> Pump K</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="pumpW" checked> Pump W</label>
+        <div class="multi-select-section">Container Levels</div>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="c1level" checked> C1 Level (%)</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="c2level" checked> C2 Level (%)</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="c3level" checked> C3 Level (%)</label>
+        <label class="multi-select-option"><input type="checkbox" class="col-group-toggle" data-group="c4level" checked> C4 Level (%)</label>
+      </div>
+    </div>
   </div>
 
   <div class="filter-container">
@@ -82,6 +93,10 @@
         <th class="col-pump group-pump">Pump P</th>
         <th class="col-pump group-pump">Pump K</th>
         <th class="col-pump group-pump">Pump W</th>
+        <th class="col-c1level group-c1level">C1 Level (%)</th>
+        <th class="col-c2level group-c2level">C2 Level (%)</th>
+        <th class="col-c3level group-c3level">C3 Level (%)</th>
+        <th class="col-c4level group-c4level">C4 Level (%)</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -100,7 +115,6 @@
   const loadingStatus  = document.getElementById('loading-status');
   const thId           = document.getElementById('th-id');
   const thTimestamp    = document.getElementById('th-timestamp');
-  const pumpEventToggle = document.getElementById('pump-event-toggle');
 
   let allData      = [];
   let filteredData = [];
@@ -108,47 +122,56 @@
   const limit      = 100;
   const PUMP_WINDOW = 300; // 5 minutes = 300 seconds of rows
 
-  const numericCols = ['N1','N2','N3','P1','P2','P3','K1','K2','K3','SM1','SM2','SM3'];
+  const numericCols  = ['N1','N2','N3','P1','P2','P3','K1','K2','K3','SM1','SM2','SM3'];
+  // C-level max capacities in ml — adjust these to match your actual tank sizes
+  const C_MAX = { C1_level_ml: 1000, C2_level_ml: 1000, C3_level_ml: 1000, C4_level_ml: 1000 };
+
+  // Convert ml to percent (clamped 0–100)
+  function mlToPercent(val, key) {
+    const num = parseFloat(val);
+    if (isNaN(num)) return '-';
+    const pct = (num / C_MAX[key]) * 100;
+    return Math.min(100, Math.max(0, pct)).toFixed(1) + '%';
+  }
 
   // ── Column Group Toggles ──────────────────────────────────────
-  const groupVisible = { n: true, p: true, k: true, sm: true, pump: true };
-
-  // Which individual pumps are active for filtering
-  const pumpActive = { Pump1: true, Pump2: true, Pump3: true, Pump4: true };
-
-  // "All Pumps" master checkbox — syncs individual pump checkboxes
-  document.getElementById('pump-event-toggle').addEventListener('change', function() {
-    groupVisible['pump'] = this.checked;
-    document.querySelectorAll('.pump-individual').forEach(cb => {
-      cb.checked = this.checked;
-      pumpActive[cb.dataset.pump] = this.checked;
-      cb.disabled = !this.checked;
-    });
-    currentPage = 1;
-    applyFilters();
-  });
-
-  // Individual pump checkboxes
-  document.querySelectorAll('.pump-individual').forEach(cb => {
-    cb.addEventListener('change', () => {
-      pumpActive[cb.dataset.pump] = cb.checked;
-      // Sync master: checked if at least one individual is on
-      const anyOn = Object.values(pumpActive).some(v => v);
-      groupVisible['pump'] = anyOn;
-      document.getElementById('pump-event-toggle').checked = anyOn;
-      document.getElementById('pump-event-toggle').indeterminate =
-        anyOn && !Object.values(pumpActive).every(v => v);
-      currentPage = 1;
-      applyFilters();
-    });
-  });
+  const groupVisible = { n: true, p: true, k: true, sm: true, pump: true, pumpN: true, pumpP: true, pumpK: true, pumpW: true, c1level: true, c2level: true, c3level: true, c4level: true };
 
   document.querySelectorAll('.col-group-toggle').forEach(cb => {
-    if (cb.id === 'pump-event-toggle') return; // handled above
     cb.addEventListener('change', () => {
       groupVisible[cb.dataset.group] = cb.checked;
-      applyAllVisibility();
+      if (cb.dataset.group === 'pump') {
+        currentPage = 1;
+        applyFilters();
+      } else {
+        applyAllVisibility();
+      }
     });
+  });
+
+  // ── Multi-select dropdown ─────────────────────────────────
+  const dropdownTrigger = document.getElementById('col-dropdown-trigger');
+  const dropdownWrapper = dropdownTrigger.closest('.multi-select-wrapper');
+  const dropdownLabel   = document.getElementById('col-dropdown-label');
+
+  dropdownTrigger.addEventListener('click', () => {
+    dropdownWrapper.classList.toggle('open');
+  });
+
+  document.addEventListener('click', e => {
+    if (!dropdownWrapper.contains(e.target)) dropdownWrapper.classList.remove('open');
+  });
+
+  function updateDropdownLabel() {
+    const total   = document.querySelectorAll('.col-group-toggle').length;
+    const checked = document.querySelectorAll('.col-group-toggle:checked').length;
+    dropdownLabel.textContent = checked === total ? 'All Columns Visible'
+                              : checked === 0     ? 'No Columns Selected'
+                              : `${checked} / ${total} Columns Visible`;
+  }
+
+  document.querySelectorAll('.col-group-toggle').forEach(cb => {
+    cb.addEventListener('change', updateDropdownLabel);
   });
 
   // ── Event Listeners ───────────────────────────────────────────
@@ -182,7 +205,15 @@
       });
     });
 
-    toggleCol('col-pump', groupVisible['pump']);
+    toggleCol('col-pump',   groupVisible['pump']);
+    toggleCol('col-c1level', groupVisible['c1level']);
+    toggleCol('col-c2level', groupVisible['c2level']);
+    toggleCol('col-c3level', groupVisible['c3level']);
+    toggleCol('col-c4level', groupVisible['c4level']);
+    toggleCol('col-pumpN', groupVisible['pumpN']);
+    toggleCol('col-pumpP', groupVisible['pumpP']);
+    toggleCol('col-pumpK', groupVisible['pumpK']);
+    toggleCol('col-pumpW', groupVisible['pumpW']);
   }
 
   function toggleCol(cls, visible) {
@@ -213,7 +244,7 @@
       fileList = await manifestRes.json();
     } catch (e) {
       loadingStatus.textContent = '⚠️ Could not load manifest.json.';
-      tbody.innerHTML = `<tr><td colspan="18">Could not load manifest.json. Make sure it exists in NPKdataset/.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="22">Could not load manifest.json. Make sure it exists in NPKdataset/.</td></tr>`;
       return;
     }
 
@@ -226,7 +257,7 @@
 
     const results = await Promise.all(fetchPromises);
     allData = results.flat();
-    allData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // ascending for pump window logic
+    allData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
     filteredData = [...allData];
     loadingStatus.textContent = `✅ Loaded ${allData.length.toLocaleString()} records from ${fileList.length} file(s).`;
@@ -260,6 +291,8 @@
       groups[key].rows.push(row);
     });
 
+    const cLevelCols = ['C1_level_ml','C2_level_ml','C3_level_ml','C4_level_ml'];
+
     return Object.values(groups)
       .sort((a, b) => b.key.localeCompare(a.key))
       .map(group => {
@@ -267,6 +300,10 @@
         numericCols.forEach(col => {
           const vals = group.rows.map(r => parseFloat(r[col])).filter(v => !isNaN(v));
           avg[col] = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(0) : '-';
+        });
+        cLevelCols.forEach(col => {
+          const vals = group.rows.map(r => parseFloat(r[col])).filter(v => !isNaN(v));
+          avg[col] = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : null;
         });
         ['Pump1','Pump2','Pump3','Pump4'].forEach(p => {
           const vals = group.rows.map(r => r[p]).filter(Boolean);
@@ -284,37 +321,35 @@
 
   // ── Pump Event 5-min Average ──────────────────────────────────
   function computePumpEvents(data) {
-    const pumpCols   = ['Pump1', 'Pump2', 'Pump3', 'Pump4'];
-    const pumpLabels = { Pump1: 'N', Pump2: 'P', Pump3: 'K', Pump4: 'W' };
-    const events     = [];
-
-    // Only consider pumps that are individually checked
-    const enabledPumps = pumpCols.filter(p => pumpActive[p]);
+    const pumpCols   = ['Pump1','Pump2','Pump3','Pump4'];
+    const pumpLabels = { Pump1:'N', Pump2:'P', Pump3:'K', Pump4:'W' };
+    const cLevelCols = ['C1_level_ml','C2_level_ml','C3_level_ml','C4_level_ml'];
+    const events = [];
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-
-      // Check if any ENABLED pump is ON
-      const activePumps = enabledPumps.filter(p => String(row[p]).trim() === '1');
+      const activePumps = pumpCols.filter(p => String(row[p]).trim() === '1');
       if (activePumps.length === 0) continue;
 
-      // Grab the next PUMP_WINDOW rows (or until end of data)
       const windowEnd  = Math.min(i + PUMP_WINDOW, data.length);
       const windowRows = data.slice(i, windowEnd);
 
-      // Compute averages for each numeric column
       const avgRow = {};
       numericCols.forEach(col => {
         const vals = windowRows.map(r => parseFloat(r[col])).filter(v => !isNaN(v));
         avgRow[col] = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : '-';
       });
+      cLevelCols.forEach(col => {
+        const vals = windowRows.map(r => parseFloat(r[col])).filter(v => !isNaN(v));
+        avgRow[col] = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : null;
+      });
 
-      // Label which pumps were active
       const pumpLabel = activePumps.map(p => `Pump${pumpLabels[p]}`).join(', ');
 
       events.push({
         id:          `${windowRows.length} rows`,
         timestamp:   row.timestamp,
+        triggerAt:   row.timestamp,
         activePumps: pumpLabel,
         ...avgRow,
         Pump1: activePumps.includes('Pump1') ? '1' : '0',
@@ -332,7 +367,7 @@
     const start    = startDateInput.value ? new Date(startDateInput.value) : null;
     const end      = endDateInput.value   ? new Date(endDateInput.value)   : null;
     const avgMode  = avgFilter.value;
-    const pumpMode = groupVisible['pump']; // true = pump checkbox is checked
+    const pumpMode = groupVisible['pump'];
 
     let data = allData.filter(row => {
       if (!row.timestamp) return false;
@@ -343,21 +378,17 @@
     });
 
     if (pumpMode) {
-      // Step 1: Compute pump events (5-min avg windows for each pump=1 trigger)
       let pumpEvents = computePumpEvents(data);
-
-      // Step 2: If a grouping mode is selected, group the pump events by hour/day/week
       if (avgMode !== 'none') {
         filteredData = computeAverages(pumpEvents, avgMode);
         thId.textContent        = 'Events';
         thTimestamp.textContent = `Pump Trigger (by ${avgMode})`;
       } else {
-        filteredData = pumpEvents; // already descending
+        filteredData = pumpEvents;
         thId.textContent        = 'Window';
         thTimestamp.textContent = 'Pump Trigger Time';
       }
     } else {
-      // Normal mode — no pump filtering
       if (avgMode !== 'none') {
         filteredData = computeAverages(data.slice().reverse(), avgMode);
         thId.textContent        = 'Records';
@@ -373,6 +404,16 @@
     renderTable();
   }
 
+  // ── C-level bar cell ─────────────────────────────────────────
+  // ── C-level cell ─────────────────────────────────────────
+  function cLevelCell(rawVal) {
+    if (rawVal === null || rawVal === undefined || rawVal === '') return '-';
+    const num = parseFloat(rawVal);
+    if (isNaN(num)) return '-';
+    const pct = Math.min(100, Math.max(0, (num / 6500) * 100));
+    return pct.toFixed(1) + '%';
+  }
+
   // ── Render ────────────────────────────────────────────────────
   function renderTable() {
     tbody.innerHTML = "";
@@ -382,7 +423,7 @@
     const pageData   = filteredData.slice(startIndex, startIndex + limit);
 
     if (pageData.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="18">No data found</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="22">No data found</td></tr>`;
       pageInfo.textContent = 'Page 0';
       return;
     }
@@ -400,7 +441,6 @@
         tr.style.background = 'rgba(0,128,0,0.05)';
       }
 
-      // Show active pump badge when in pump event mode (raw, not grouped)
       const idCell = (pumpMode && avgMode === 'none')
         ? `${row.id}<br><small style="color:#0077cc;font-weight:bold;">${row.activePumps || ''}</small>`
         : row.id;
@@ -424,6 +464,10 @@
         <td class="col-pump group-pump" style="${row.Pump2==='1'?'color:green;font-weight:bold;':''}">${row.Pump2 ?? '-'}</td>
         <td class="col-pump group-pump" style="${row.Pump3==='1'?'color:green;font-weight:bold;':''}">${row.Pump3 ?? '-'}</td>
         <td class="col-pump group-pump" style="${row.Pump4==='1'?'color:green;font-weight:bold;':''}">${row.Pump4 ?? '-'}</td>
+        <td class="col-c1level group-c1level">${cLevelCell(row.C1_level_ml, 'C1_level_ml')}</td>
+        <td class="col-c2level group-c2level">${cLevelCell(row.C2_level_ml, 'C2_level_ml')}</td>
+        <td class="col-c3level group-c3level">${cLevelCell(row.C3_level_ml, 'C3_level_ml')}</td>
+        <td class="col-c4level group-c4level">${cLevelCell(row.C4_level_ml, 'C4_level_ml')}</td>
       `;
       tbody.appendChild(tr);
     });
